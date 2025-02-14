@@ -1,0 +1,265 @@
+-- Creating PersonInfo Table
+CREATE TABLE PersonInfo (
+ PersonID INT PRIMARY KEY,
+ PersonName VARCHAR(100) NOT NULL,
+ Salary DECIMAL(8,2) NOT NULL,
+ JoiningDate DATETIME NULL,
+ City VARCHAR(100) NOT NULL,
+ Age INT NULL,
+ BirthDate DATETIME NOT NULL
+);
+
+
+
+-- Creating PersonLog Table
+CREATE TABLE PersonLog (
+ PLogID INT PRIMARY KEY IDENTITY(1,1),
+ PersonID INT NOT NULL,
+ PersonName VARCHAR(250) NOT NULL,
+ Operation VARCHAR(50) NOT NULL,
+ UpdateDate DATETIME NOT NULL,
+);
+
+
+
+--Part – A
+--1. Create a trigger that fires on INSERT, UPDATE and DELETE operation on the PersonInfo table to display a message “Record is Affected.”
+
+------------INSERT-----------------
+CREATE OR ALTER TRIGGER TR_PERSONINFO_INSERT
+ON PERSONINFO
+AFTER INSERT
+AS 
+BEGIN 
+	PRINT 'RECORD IS AFFECTED'
+END
+
+-------------UPDATE-----------------
+CREATE OR ALTER TRIGGER TR_PERSONINFO_UPDATE
+ON PERSONINFO
+AFTER UPDATE
+AS
+BEGIN
+	PRINT 'RECORD IS AFFECTED'
+END
+
+
+-------------DELETE--------------------
+CREATE OR ALTER TRIGGER TR_PERSONINFO_DELETE
+ON PERSONINFO
+AFTER DELETE
+AS
+BEGIN
+	PRINT 'RECORD IS DELETED'
+END
+
+--2. Create a trigger that fires on INSERT, UPDATE and DELETE operation on the PersonInfo table. For that,
+--log all operations performed on the person table into PersonLog.
+
+------------INSERT----------------
+CREATE TRIGGER TR_PERSONINFO_AFTER_INSERT
+ON PERSONINFO
+AFTER INSERT
+AS
+BEGIN
+	DECLARE @PERSONID INT;
+	DECLARE @PERSONNAME VARCHAR(100);
+
+	SELECT @PERSONID = PERSONID FROM inserted
+	SELECT @PERSONNAME = PERSONNAME FROM inserted
+
+	INSERT INTO PersonLog (PersonID , PersonName , OPERATION , UpdateDate) VALUES (@PERSONID , @PERSONNAME , 'INSERT' , GETDATE())
+
+END
+
+
+-----------UPDATE----------
+
+CREATE TRIGGER TR_PERSONINFO_AFTER_UPDATE
+ON PERSONINFO
+AFTER UPDATE
+AS
+BEGIN
+	DECLARE @PERSONID INT;
+	DECLARE @PERSONNAME VARCHAR(100);
+
+	SELECT @PERSONID = PERSONID FROM inserted
+	SELECT @PERSONNAME = PERSONNAME FROM inserted
+
+	INSERT INTO PersonLog (PersonID , PersonName , OPERATION , UpdateDate) VALUES (@PERSONID , @PERSONNAME , 'UPDATE' , GETDATE())
+
+END
+
+
+-----------DELETE----------
+
+CREATE TRIGGER TR_PERSONINFO_AFTER_DELETE
+ON PERSONINFO
+AFTER DELETE
+AS
+BEGIN
+	DECLARE @PERSONID INT;
+	DECLARE @PERSONNAME VARCHAR(100);
+
+	SELECT @PERSONID = PERSONID FROM deleted
+	SELECT @PERSONNAME = PERSONNAME FROM deleted
+
+	INSERT INTO PersonLog (PersonID , PersonName , OPERATION , UpdateDate) VALUES (@PERSONID , @PERSONNAME , 'DELETE' , GETDATE())
+
+END
+
+
+--3. Create an INSTEAD OF trigger that fires on INSERT, UPDATE and DELETE operation on the PersonInfo
+--table. For that, log all operations performed on the person table into PersonLog.
+
+-------------INSERT---------------
+CREATE OR ALTER TRIGGER TR_PERSONINFO_INSTEAD_OF_INSERT
+ON PERSONINFO
+INSTEAD OF INSERT
+AS
+BEGIN
+	DECLARE @PERSONID INT;
+	DECLARE @PERSONNAME VARCHAR(100);
+
+	SELECT @PERSONID = PERSONID FROM INSERTED
+	SELECT @PERSONNAME = PERSONNAME FROM INSERTED
+
+	INSERT INTO PersonLog VALUES(@PERSONID , @PERSONNAME , 'INSERT' , GETDATE())
+END
+
+
+--------------UPDATE--------------------
+
+CREATE OR ALTER TRIGGER TR_PERSONINFO_INSTEAD_OF_UPDATE
+ON PERSONINFO
+INSTEAD OF UPDATE
+AS
+BEGIN
+	DECLARE @PERSONID INT;
+	DECLARE @PERSONNAME VARCHAR(100);
+
+	SELECT @PERSONID = PERSONID FROM INSERTED
+	SELECT @PERSONNAME = PERSONNAME FROM INSERTED
+
+	INSERT INTO PersonLog VALUES(@PERSONID , @PERSONNAME , 'UPDATE' , GETDATE())
+END
+
+
+-----------------DELETE---------------------
+
+CREATE OR ALTER TRIGGER TR_PERSONINFO_INSTEAD_OF_UPDATE
+ON PERSONINFO
+INSTEAD OF DELETE
+AS
+BEGIN
+	DECLARE @PERSONID INT;
+	DECLARE @PERSONNAME VARCHAR(100);
+
+	SELECT @PERSONID = PERSONID FROM DELETED
+	SELECT @PERSONNAME = PERSONNAME FROM DELETED
+
+	INSERT INTO PersonLog VALUES(@PERSONID , @PERSONNAME , 'DELETE' , GETDATE())
+END
+	
+
+
+--4. Create a trigger that fires on INSERT operation on the PersonInfo table to convert person name into
+--uppercase whenever the record is inserted.
+
+CREATE OR ALTER TRIGGER TR_PERSONINFO_INSERT_UPPERCARE
+ON PERSONINFO
+AFTER INSERT 
+AS
+BEGIN
+
+	UPDATE PersonInfo
+	SET PersonName = UPPER(PERSONNAME)
+	WHERE PersonID IN (SELECT PersonID FROM inserted)
+
+END
+
+--5. Create trigger that prevent duplicate entries of person name on PersonInfo table.
+
+CREATE OR ALTER TRIGGER TR_PERSONINFO_PREVENTDUPLICATE
+ON PERSONINFO
+INSTEAD OF INSERT
+AS
+BEGIN
+	
+	INSERT INTO PERSONINFO
+
+	SELECT personid , personname , salary , joiningdate , city , age , birthdate from inserted
+
+	where PersonName not in (select PersonName from PersonInfo)
+
+end
+
+--6. Create trigger that prevent Age below 18 years.
+
+CREATE OR ALTER TRIGGER TR_PERSONINFO_AGEGREATERHAN18
+ON PERSONINFO
+INSTEAD OF INSERT
+AS
+BEGIN
+	INSERT INTO PERSONINFO (PersonID , PersonName , Salary , JoiningDate , City , Age , BirthDate)
+
+	SELECT personid , personname , salary , joiningdate , city , age , birthdate from inserted
+
+	where AGE > 18;
+
+end
+
+
+--Part – B
+--7. Create a trigger that fires on INSERT operation on person table, which calculates the age and update that age in Person table.
+
+
+--8. Create a Trigger to Limit Salary Decrease by a 10%.
+
+CREATE OR ALTER TRIGGER TR_PERSON_INSERT_DECREASE_SALARY
+ON PERSONINFO
+AFTER INSERT
+AS
+BEGIN
+	DECLARE @OLDSALARY DECIMAL(8 , 2) , @NEWSALARY DECIMAL(8 , 2) , @PID INT
+
+	SELECT @OLDSALARY FROM DELETED
+	SELECT @NEWSALARY = SALARY , @PID = PERSONID FROM INSERTED
+
+	IF @NEWSALARY < @OLDSALARY * 0.9
+	BEGIN
+		UPDATE PERSONINFO
+		SET SALARY = @OLDSALARY
+		WHERE PERSONID = @PID
+	END
+END
+
+--Part – C
+--9. Create Trigger to Automatically Update JoiningDate to Current Date on INSERT if JoiningDate is NULL during an INSERT.
+
+CREATE OR ALTER TRIGGER TR_SETJOININGDATE
+ON PERSONINFO
+AFTER INSERT
+AS
+BEGIN
+	DECLARE @JOININGDATE DATETIME
+	
+	SELECT @JOININGDATE = JOININGDATE FROM INSERTED
+
+	UPDATE PERSONINFO
+	SET JOININGDATE = GETDATE()
+	WHERE @JOININGDATE IS NULL
+END
+
+--10. Create DELETE trigger on PersonLog table, when we delete any record of PersonLog table it prints
+--‘Record deleted successfully from PersonLog’.
+
+
+CREATE OR ALTER TRIGGER TR_DELETE
+ON PERSONLOG
+AFTER DELETE
+AS
+BEGIN
+	PRINT 'RECORD DELETED SUCCESSFULLY'
+END
+	
